@@ -1,6 +1,8 @@
 services:
   ros:
     image: osrf/ros:humble-desktop-full
+    network_mode: host          # ← NEW
+    command: sleep infinity      # ← NEW
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
