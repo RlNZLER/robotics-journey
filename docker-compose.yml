@@ -1,14 +1,19 @@
 services:
   ros:
-    image: osrf/ros:humble-desktop-full
-    network_mode: host          # ← NEW
-    command: sleep infinity      # ← NEW
+    build:
+      context: .
+      args:
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    user: "${UID:-1000}:${GID:-1000}"
+    network_mode: host
+    command: sleep infinity
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./src:/root/ros2_ws/src
+      - ./src:/ws/src
     stdin_open: true
     tty: true
     deploy:
