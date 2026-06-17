@@ -17,15 +17,32 @@ class DriveForward(Node):
         # TODO: compute how long the node has been running
         elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds / 1e9  # convert to seconds
         # TODO: if under N seconds -> publish a Twist with linear.x = 0.2
-        if elapsed_time < 5.0:  # for example, drive forward for 5 seconds
+        if elapsed_time < 6.28:     # move semi circle for 5 seconds
             msg = Twist()
-            msg.linear.x = 0.2
+            msg.linear.x = 0.5
+            msg.angular.z = 0.5
             self.publisher_.publish(msg)
-        else:
+        elif elapsed_time < 12.56:  # move semi circle for 5 seconds
+            msg = Twist()
+            msg.linear.x = 0.5
+            msg.angular.z = -0.5
+            self.publisher_.publish(msg)
+        elif elapsed_time < 18.84:   # move semi circle for 5 seconds
+            msg = Twist()
+            msg.linear.x = 0.5
+            msg.angular.z = -0.5
+            self.publisher_.publish(msg)
+        elif elapsed_time < 25.12:   # move semi circle for 5 seconds
+            msg = Twist()
+            msg.linear.x = 0.5
+            msg.angular.z = 0.5
+            self.publisher_.publish(msg)
+        elif elapsed_time < 31.4:  # stop
             msg = Twist()
             msg.linear.x = 0.0
+            msg.angular.z = 0.0
             self.publisher_.publish(msg)
-        # TODO: else -> publish a zero Twist (stop)
+
 
 
 def main(args=None):
