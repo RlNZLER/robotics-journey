@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-turtlebot3-simulations \
     ros-humble-turtlebot3-gazebo \
     ros-humble-teleop-twist-keyboard \
+    mesa-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the TurtleBot3 model for all shells
