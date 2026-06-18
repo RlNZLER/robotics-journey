@@ -256,6 +256,73 @@ WORKDIR /ws
 
 > **Why the workspace is `/ws`, not `/root/ros2_ws`:** `/root` is root's home directory — a non-root user can't write there. Moving the workspace to `/ws` (owned by the `ros` user) is what lets the non-root container build and edit code.
 
+## TurtleBot3 + Gazebo Classic
+
+The robot platform for this journey is **TurtleBot3 Waffle** (chosen for its LiDAR *and* camera, so one robot covers both navigation/SLAM and perception work). It runs on **Gazebo Classic 11**.
+
+> **Gazebo Classic vs new Gazebo (Fortress):** The base image ships new Gazebo (Fortress), but TB3's smoothest, best-documented path is Gazebo Classic. Classic is end-of-life (Jan 2025), so this is a deliberate trade: maximum learning momentum now, with a planned future migration to Fortress + `ros_gz_bridge` as a standalone exercise. The control/perception nodes you write are simulator-agnostic, so the Gazebo version is just the substrate.
+
+Installed via the Dockerfile (reproducible — the image *is* the stored robot), added before the `USER` switch:
+
+```dockerfile
+# Install Gazebo Classic + TurtleBot3 packages (as root, before USER switch)
+RUN apt-get update && apt-get install -y \
+    ros-humble-gazebo-ros-pkgs \
+    ros-humble-turtlebot3 \
+    ros-humble-turtlebot3-simulations \
+    ros-humble-turtlebot3-gazebo \
+    ros-humble-teleop-twist-keyboard \
+    mesa-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the TurtleBot3 model for all shells
+ENV TURTLEBOT3_MODEL=waffle
+```
+
+**Verify after rebuild:**
+
+```bash
+echo $TURTLEBOT3_MODEL              # waffle
+ros2 pkg list | grep turtlebot3    # several turtlebot3_* packages
+which gazebo                       # /usr/bin/gazebo (Classic installed)
+```
+
+**Launch the robot:**
+
+```bash
+ros2 launch turtlebot3_gazebo empty_world.launch.py
+```
+
+**Drive it (teleop):**
+
+```bash
+ros2 run turtlebot3_teleop teleop_keyboard   # w/x = forward/back, a/d = turn, s = stop
+```
+
+> Reading the robot's description: the URDF/xacro (kinematics, TF) is at `/opt/ros/humble/share/turtlebot3_description/urdf/`; the Gazebo model with sensor/diff-drive **plugins** (SDF) is at `/opt/ros/humble/share/turtlebot3_gazebo/models/turtlebot3_waffle/model.sdf`. URDF = kinematics/TF; SDF = Gazebo plugins.
+
+## GPU Rendering (Hybrid Graphics — PRIME Offload)
+
+This machine has **hybrid graphics**: AMD Renoir (integrated, drives the display by default) + NVIDIA RTX 3050 (discrete). By default, Gazebo rendered on the integrated AMD GPU (symptom: `amdgpu: drmGetDevice2 failed` warnings on launch).
+
+The fix is **PRIME render offload** — two environment variables that force a process to render on the NVIDIA GPU. Added to the `environment:` block in `docker-compose.yml`:
+
+```yaml
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - __NV_PRIME_RENDER_OFFLOAD=1
+      - __GLX_VENDOR_LIBRARY_NAME=nvidia
+```
+
+**Verify** (`mesa-utils` provides `glxinfo`):
+
+```bash
+glxinfo | grep "OpenGL renderer"   # should show NVIDIA GeForce RTX 3050, not RENOIR
+```
+
+When working, the `amdgpu` warnings disappear from the Gazebo launch output.
+
 ### Find your host UID/GID
 
 The Dockerfile defaults to 1000/1000 (the first user on a machine). Confirm yours:
@@ -398,3 +465,6 @@ docker compose down         # stops and removes the container
 | `colcon build` can't write build/install/log | Workspace dir not owned by the container user | Ensure workspace is `/ws` (created + owned in the Dockerfile), build from `/ws` |
 | GUI fails after reboot | `xhost` permission resets per session | Re-run `xhost +local:root` |
 | RViz crashes / renders glitchy | Qt shared-memory issue | Ensure `-e QT_X11_NO_MITSHM=1` / the `environment:` entry is set |
+| Gazebo robot won't spawn: `Service /spawn_entity unavailable` on **first** launch | First-run model loading exceeds spawn_entity's 30s timeout (gzserver needs ~2 min initially) | Wait and relaunch — second launch is fast (models cached). Optionally pre-warm Gazebo once at session start. Not a real failure. |
+| `amdgpu: drmGetDevice2 failed` warnings / sluggish Gazebo | Rendering on integrated GPU instead of NVIDIA | Add the two PRIME offload vars to compose `environment:`; verify with `glxinfo` |
+| `glxinfo: command not found` | mesa-utils not installed | Add `mesa-utils` to the Dockerfile apt block, rebuild |
