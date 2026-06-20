@@ -14,7 +14,7 @@ Each project is a self-contained colcon package under `src/`, introducing one co
 | 4 | SLAM | Mapping, scan matching, loop closure |
 | 5 | Autonomous navigation | Nav2, costmaps, planning & control |
 
-*Project 1 in progress*
+*Project 1 in progress!*
 
 ## Stack
 
