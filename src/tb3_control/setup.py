@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'controller = tb3_control.controller:main',
+            'drive_distance = tb3_control.drive_distance:main',
         ],
     },
 )
